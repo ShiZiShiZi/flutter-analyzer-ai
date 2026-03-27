@@ -1,0 +1,37 @@
+{
+  "repo_url": "https://github.com/RxReader/alipay_kit.git",
+  "analyzed_at": "2026-03-13T00:00:00Z",
+  "cloud_services": {
+    "topology": "centralized",
+    "label": "端云协同中心化",
+    "services": [
+      "Alipay Payment SDK",
+      "Alipay Auth SDK"
+    ],
+    "evidence": [
+      "alipay_kit_android/android/build.gradle:58: vendorImplementation 'com.alipay.sdk:alipaysdk-android:15.8.14@aar'",
+      "alipay_kit_ios/ios/alipay_kit_ios.podspec: 支付宝SDK framework 依赖",
+      "alipay_kit/lib/src/alipay_kit_platform_interface.dart:32-73: pay() 和 auth() 方法定义",
+      "alipay_kit_ios/ios/Classes/AlipayKitPlugin.m:27: 检测支付宝是否已安装 alipay:",
+      "alipay_kit/example/lib/main.dart:40-44: 需要 appId, pid, targetId, privateKey 配置"
+    ]
+  },
+  "payment": {
+    "involves_payment": true,
+    "payment_type": [
+      "paid_sdk"
+    ],
+    "evidence": [
+      "alipay_kit/pubspec.yaml:2: description: A powerful Flutter plugin allowing developers to auth/pay with native Android & iOS Alipay SDKs",
+      "alipay_kit/lib/src/alipay_kit_platform_interface.dart:32-63: pay() 支付方法定义",
+      "alipay_kit_android/android/build.gradle:58: 依赖支付宝支付SDK 'com.alipay.sdk:alipaysdk-android:15.8.14@aar'",
+      "alipay_kit_ios/ios/Libraries/utdid/AlipaySDK.framework: 支付宝iOS SDK框架",
+      "README.md:25-26: 支付宝支付和登录文档链接"
+    ]
+  },
+  "license": {
+    "type": "MIT",
+    "commercial_friendly": true,
+    "restrictions": []
+  }
+}

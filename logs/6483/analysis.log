@@ -1,0 +1,9 @@
+我将按照八步流程对该 Flutter 插件进行完整分析。让我开始执行。
+基于分析，这个插件是百度人脸采集 SDK 的封装，需要 licenseId 和 license 文件进行授权。iOS 代码中的 `andRemoteAuthorize:true` 表明存在远程授权机制，属于中心化绑定。
+
+现在继续第四步 payment-check：
+README 明确说明这是"百度人脸离线采集插件"，核心功能完全在本地离线运行。虽然需要 license 授权，但这属于 SDK 授权机制而非付费云服务。
+
+现在继续第五步 features-check：
+现在我已经完成了所有八步分析。让我整理结果并写入指定的 JSON 文件：
+分析任务已完成！让我验证 JSON 文件是否正确写入：

@@ -1,0 +1,11 @@
+我将按照八步流程分析该 Flutter 插件。让我依次加载并执行每个 skill。
+
+**第一步：License 分析**
+**第二步：Mobile Platform 分析**
+**第三步：Cloud Service 分析**
+**第四步：Payment 分析**
+**第五步：Features 分析**
+**第六步：Ecosystem 分析**
+**第七步：Dependency 分析**
+**第八步：Code Stats 分析**
+现在我将所有八步分析结果汇总，生成最终 JSON 并写入指定文件：

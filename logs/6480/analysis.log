@@ -1,0 +1,16 @@
+我将按照八步流程依次分析该 Flutter 插件。首先加载第一个 skill 进行 License 分析。
+现在执行 License 分析的前两步：
+License 分析完成（MIT License，permissive 类别）。继续加载 mobile-platform-check skill：
+执行 mobile-platform 分析：
+Mobile platform 分析完成（NONE，无厂商绑定）。继续加载 cloud-service-check skill：
+执行 cloud-service 分析各步骤：
+现在我对这个插件有了更深入的了解。这是深信服（Sangfor）Atrust SDK 的 Flutter 封装，用于企业零信任安全接入。继续加载 payment-check skill：
+Payment 分析完成。这个插件是深信服 Atrust SDK 的 Flutter 封装，MIT 开源，依赖企业自部署的 VPN 服务器。继续加载 features-check skill：
+执行 features 分析：
+Features 分析完成。继续加载 ecosystem-check skill：
+基于 features 分析结论，执行 ecosystem 补充扫描：
+Ecosystem 分析完成（无生态敏感型能力）。继续加载 dependency-analysis skill：
+执行 dependency-analysis 各步骤：
+Dependency 分析完成。继续加载最后一步 code-stats-check skill：
+执行 code-stats 分析各步骤：
+所有八步分析已完成，现在将结果写入指定的 JSON 文件：

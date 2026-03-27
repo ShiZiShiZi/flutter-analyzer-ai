@@ -1,0 +1,16 @@
+[project]
+name = "flutter-analysis"
+version = "0.1.0"
+description = "Analyze Flutter plugins for cloud services, payment, and license"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "aiosqlite>=0.20.0",
+    "httpx>=0.27.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.scripts]
+flutter-analysis = "main:main"

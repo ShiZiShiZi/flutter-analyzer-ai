@@ -1,0 +1,9 @@
+我将按照八步流程分析 `/Users/yt/task/flutter_analysis/repos/alipay_auth` 下的 Flutter 插件。首先开始第一步 License 分析。
+第一步完成。License 为 BSD-3-Clause，属于 permissive 类型。现在执行第二步：mobile-platform-check。
+第二步完成。未检测到任何厂商平台绑定，mobile_platform 为 NONE。现在执行第三步：cloud-service-check。
+第三步完成。该插件使用支付宝 SDK 进行认证，属于端云协同中心化服务，服务提供商为支付宝（蚂蚁集团）。现在执行第四步：payment-check。
+第四步完成。该插件为支付宝认证插件，使用支付宝 SDK，属于支付处理类云服务。现在执行第五步：features-check。
+第五步完成。功能分析结果已收集，现在执行第六步：ecosystem-check。
+第六步完成。检测到账号登录和支付两类生态敏感型能力，均为单一接入。现在执行第七步：dependency-analysis。
+第七步完成。依赖结构已分析完毕。现在执行第八步：code-stats-check。
+所有八步分析已完成。现在组装最终 JSON 结果并写入指定文件。

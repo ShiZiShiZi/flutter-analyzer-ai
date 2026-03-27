@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}批量导入 — Flutter Analyzer{% endblock %}
+{% block body_id %}page-import{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>批量导入插件</h1>
+  <a href="/" class="btn btn-ghost">← 返回列表</a>
+</div>
+
+<div class="import-steps">
+
+  <!-- Step 1: Input -->
+  <div class="step-card" id="step1">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <h2>输入 package 名称</h2>
+    </div>
+    <p class="hint">每行一个 pub.dev package 名称，例如：<code>alipay_kit</code></p>
+    <textarea id="pkg-input" class="pkg-textarea" placeholder="alipay_kit&#10;wechat_kit&#10;dio" rows="10"></textarea>
+    <div class="step-actions">
+      <button class="btn btn-primary" onclick="queryPubdev()" id="btn-query">查询 pub.dev</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Results table -->
+  <div class="step-card hidden" id="step2">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <h2>确认导入</h2>
+    </div>
+    <p class="hint">勾选要导入的插件，点击确认后自动从 pub.dev 下载并分析。</p>
+    <div class="table-wrap">
+    <table class="data-table" id="lookup-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="lookup-select-all" onchange="toggleLookupAll(this)"></th>
+          <th>名称</th>
+          <th>pub.dev 状态</th>
+        </tr>
+      </thead>
+      <tbody id="lookup-tbody"></tbody>
+    </table>
+    </div>
+    <div class="step-actions">
+      <button class="btn btn-primary" onclick="confirmImport()" id="btn-import">确认导入选中</button>
+      <button class="btn btn-ghost" onclick="backToStep1()">← 重新输入</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Import result -->
+  <div class="step-card hidden" id="step3">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <h2>导入完成</h2>
+    </div>
+    <div id="import-result"></div>
+    <div class="step-actions">
+      <a href="/" class="btn btn-primary">查看插件列表</a>
+      <button class="btn btn-ghost" onclick="startOver()">继续导入</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lookupResults = [];
+
+async function queryPubdev() {
+  const raw = document.getElementById('pkg-input').value.trim();
+  const names = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!names.length) { showToast('请输入至少一个包名', 'error'); return; }
+
+  const btn = document.getElementById('btn-query');
+  btn.disabled = true;
+  btn.textContent = '查询中…';
+
+  try {
+    const resp = await apiFetch('/api/plugins/lookup', 'POST', { names });
+    lookupResults = resp.results;
+    renderLookupTable(lookupResults);
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
+  } catch (e) {
+    showToast('查询失败：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '查询 pub.dev';
+  }
+}
+
+function renderLookupTable(results) {
+  const tbody = document.getElementById('lookup-tbody');
+  tbody.innerHTML = '';
+  results.forEach((r, i) => {
+    let statusClass, statusText;
+    if (r.found) {
+      statusClass = 'badge-done';
+      statusText = 'pub.dev ✓';
+    } else {
+      statusClass = 'badge-failed';
+      statusText = '未收录';
+    }
+    const defaultChecked = r.found;
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><input type="checkbox" class="lookup-check" data-idx="${i}" ${defaultChecked ? 'checked' : ''}></td>
+      <td><a href="${r.pub_url}" target="_blank">${r.name}</a></td>
+      <td><span class="badge ${statusClass}">${statusText}</span></td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function toggleLookupAll(cb) {
+  document.querySelectorAll('.lookup-check').forEach(c => c.checked = cb.checked);
+}
+
+async function confirmImport() {
+  const checks = document.querySelectorAll('.lookup-check:checked');
+  if (!checks.length) { showToast('请至少勾选一个包', 'error'); return; }
+
+  const plugins = [];
+  checks.forEach(cb => {
+    const i = cb.dataset.idx;
+    plugins.push({ name: lookupResults[i].name });
+  });
+
+  const btn = document.getElementById('btn-import');
+  btn.disabled = true;
+  btn.textContent = '导入中…';
+
+  try {
+    const resp = await apiFetch('/api/plugins/import', 'POST', { plugins });
+    renderImportResult(resp);
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step3').classList.remove('hidden');
+  } catch (e) {
+    showToast('导入失败：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '确认导入选中';
+  }
+}
+
+function renderImportResult(resp) {
+  const el = document.getElementById('import-result');
+  let html = '';
+  if (resp.imported.length) {
+    html += `<p class="success-text">成功导入 ${resp.imported.length} 个：${resp.imported.map(p => p.name).join('、')}</p>`;
+  }
+  if (resp.skipped && resp.skipped.length) {
+    html += `<p class="muted">已跳过 ${resp.skipped.length} 个（已存在）：${resp.skipped.join('、')}</p>`;
+  }
+  if (resp.errors.length) {
+    html += `<p class="error-text">失败 ${resp.errors.length} 个：</p><ul>`;
+    resp.errors.forEach(e => { html += `<li>${e.name}：${e.error}</li>`; });
+    html += '</ul>';
+  }
+  el.innerHTML = html;
+}
+
+function backToStep1() {
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('step1').classList.remove('hidden');
+}
+
+function startOver() {
+  document.getElementById('step3').classList.add('hidden');
+  document.getElementById('step1').classList.remove('hidden');
+  document.getElementById('pkg-input').value = '';
+}
+</script>
+{% endblock %}

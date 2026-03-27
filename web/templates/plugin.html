@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}{{ plugin.name }} — Flutter Analyzer{% endblock %}
+{% block body_id %}page-plugin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="/" class="breadcrumb">← 插件列表</a>
+    <h1>{{ plugin.name }}</h1>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-primary" onclick="analyzePlugin({{ plugin.id }})">开始分析</button>
+  </div>
+</div>
+
+<!-- Plugin info card -->
+<div class="info-card" id="plugin-info">
+  <div class="info-grid">
+    <div>
+      <label>名称</label>
+      <span>{{ plugin.name }}</span>
+    </div>
+    <div>
+      <label>下载状态</label>
+      <span id="dl-status-badge">
+        {% set dl_labels = {'pending':'待下载','running':'下载中','done':'已下载','failed':'下载失败','cleaned':'已清理'} %}
+        <span class="badge badge-{{ plugin.dl_status }}">{{ dl_labels.get(plugin.dl_status, plugin.dl_status) }}</span>
+        {% if plugin.dl_status == 'done' and plugin.repo_size_mb %}
+          <small>({{ plugin.repo_size_mb | human_size }})</small>
+        {% endif %}
+      </span>
+    </div>
+    <div>
+      <label>pub.dev</label>
+      <span><a href="https://pub.dev/packages/{{ plugin.name }}" target="_blank">{{ plugin.name }}</a></span>
+    </div>
+    {% if plugin.dl_error %}
+    <div class="full-width">
+      <label>下载错误</label>
+      <pre class="error-pre">{{ plugin.dl_error }}</pre>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Analysis result summary (only when done) -->
+{% if latest_run and latest_run.status == 'done' and result %}
+<div class="result-summary-card" style="margin-top:20px; padding:16px; background:#f8f9fa; border-radius:8px; border:1px solid #e9ecef;">
+  <h3 style="margin:0 0 12px 0; font-size:14px; color:#495057;">📊 分析结论</h3>
+  <div class="summary-chips" style="display:flex; flex-wrap:wrap; gap:8px;">
+    {% set cs  = result.get('cloud_services', {}) %}
+    {% set pay = result.get('payment', {}) %}
+    {% set lic = result.get('license', {}) %}
+    {% set mp  = result.get('mobile_platform', {}) %}
+    {% set ft  = result.get('features', {}) %}
+    {% set da  = result.get('dependency_analysis', {}) %}
+
+    {% if cs %}
+      {% set topo = cs.get('topology', '') %}
+      <span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#e3f2fd;color:#1976d2;border-radius:16px;font-size:13px;">
+        ☁️ {{ '边缘计算' if topo=='pure_edge' else '集中式' if topo=='centralized' else '混合式' if topo=='decentralized' else topo or '未知' }}
+      </span>
+    {% endif %}
+    {% if pay %}
+      {% set is_paid = pay.get('involves_payment') %}
+      <span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:{{ '#ffebee' if is_paid else '#e8f5e9' }};color:{{ '#c62828' if is_paid else '#2e7d32' }};border-radius:16px;font-size:13px;">
+        {{ '💰 付费' if is_paid else '✅ 免费' }}
+      </span>
+    {% endif %}
+    {% if lic %}
+      <span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#f3e5f5;color:#7b1fa2;border-radius:16px;font-size:13px;">
+        📄 {{ lic.get('declared_license') or '未知' }}
+      </span>
+    {% endif %}
+    {% if mp %}
+      <span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fff3e0;color:#ef6c00;border-radius:16px;font-size:13px;">
+        📱 {{ mp.get('label', '未知') }}
+      </span>
+    {% endif %}
+    {% if ft %}
+      <span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#e0f2f1;color:#00796b;border-radius:16px;font-size:13px;">
+        ✨ {{ (ft.get('feature_list') or [])|length }} 个功能
+      </span>
+    {% endif %}
+    {% if da %}
+      {% set summary  = da.get('summary', {}) %}
+      {% set blockers = summary.get('blockers') or [] %}
+      {% set total    = summary.get('total_dependencies') or 0 %}
+      {% set native   = summary.get('native_dependency_count') or 0 %}
+      <span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:{{ '#ffebee' if blockers else '#e8f5e9' }};color:{{ '#c62828' if blockers else '#2e7d32' }};border-radius:16px;font-size:13px;">
+        📦 {{ total }} 个依赖{% if native > 0 %} + {{ native }} Native{% endif %}{% if blockers %} ({{ blockers|length }} 阻断){% endif %}
+      </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Analysis section -->
+<h2 class="section-title" style="margin-top:24px;">最新分析</h2>
+
+{% if latest_run %}
+  <div class="run-card" id="latest-run-card">
+    <!-- Run header -->
+    <div class="run-header">
+      {% set run_labels = {'pending':'队列中','running':'分析中','done':'已完成','failed':'失败'} %}
+      <span class="badge badge-{{ latest_run.status }}">{{ run_labels.get(latest_run.status, latest_run.status) }}</span>
+      <span class="muted">
+        Run #{{ latest_run.id }}
+        {% if latest_run.duration_ms %} · {{ (latest_run.duration_ms / 1000)|int }}s{% endif %}
+        {% if latest_run.finished_at %} · {{ latest_run.finished_at[:16] }}{% endif %}
+      </span>
+      {% if latest_run.status in ('running', 'pending') %}
+        <span class="timer" id="run-timer">--:--</span>
+      {% endif %}
+      <button class="btn btn-xs" onclick="rerun({{ latest_run.id }})">重新分析</button>
+    </div>
+
+    <!-- Failed state card -->
+    {% if latest_run.status == 'failed' %}
+    <div class="run-failed-card" style="margin:16px 0; padding:16px; background:#ffebee; border-radius:8px; border:1px solid #ffcdd2;">
+      <div style="display:flex; align-items:flex-start; gap:12px;">
+        <div style="font-size:24px;">⚠️</div>
+        <div style="flex:1;">
+          <h4 style="margin:0 0 8px 0; color:#c62828;">分析失败</h4>
+          <p class="error-msg" style="margin:0 0 12px 0; color:#b71c1c;">{{ latest_run.error_msg or '未知错误' }}</p>
+          <div class="failed-actions">
+            <button class="btn btn-sm" style="background:#c62828; color:#fff;" onclick="rerun({{ latest_run.id }})">重新分析（全部）</button>
+            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('run-log').scrollIntoView({behavior:'smooth'})">查看日志</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Result detail sections -->
+    {% if result %}
+    <div style="margin-top:16px;">
+      {% set sections = [
+        ('cloud_services',      '☁️ 云服务拓扑'),
+        ('payment',             '💰 付费检测'),
+        ('license',             '📄 许可证'),
+        ('mobile_platform',     '📱 移动平台'),
+        ('features',            '✨ 功能特性'),
+        ('ecosystem',           '🌐 生态识别'),
+        ('dependency_analysis', '📦 依赖分析'),
+        ('code_stats',          '📊 代码统计'),
+      ] %}
+      {% for key, label in sections %}
+        {% set section = result.get(key) %}
+        {% if section %}
+        <details style="margin-bottom:8px; border:1px solid #e0e0e0; border-radius:6px; overflow:hidden;">
+          <summary style="padding:10px 14px; background:#f5f5f5; cursor:pointer; font-size:13px; font-weight:500; user-select:none;">{{ label }}</summary>
+          <pre style="margin:0; padding:14px; font-size:12px; overflow-x:auto; max-height:400px; overflow-y:auto; background:#fafafa;">{{ section | to_json_pretty }}</pre>
+        </details>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Stage detail modal (hidden by default) -->
+    <div id="stage-detail-modal" style="display:none; margin-top:16px; padding:16px; background:#fafafa; border-radius:8px; border:1px solid #e0e0e0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h4 id="stage-detail-title" style="margin:0; font-size:14px;">详情</h4>
+        <button onclick="document.getElementById('stage-detail-modal').style.display='none'" style="background:none; border:none; font-size:18px; cursor:pointer; color:#757575;">×</button>
+      </div>
+      <pre id="stage-detail-content" style="margin:0; padding:12px; background:#fff; border-radius:4px; overflow-x:auto; font-size:12px; max-height:400px; overflow-y:auto;"></pre>
+    </div>
+
+    <!-- Live log area for running analysis -->
+    {% if latest_run.status in ('running', 'pending') %}
+    <div style="margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h3 style="font-size:14px; margin:0;">📜 实时日志</h3>
+        <label style="font-size:12px; cursor:pointer; display:flex; align-items:center; gap:4px; color:#757575;">
+          <input type="checkbox" id="log-auto-scroll" checked> 自动滚动
+        </label>
+      </div>
+      <pre class="log-pre" id="run-log" style="max-height:400px; min-height:200px; margin:0; padding:12px; background:#263238; color:#aed581; border-radius:4px; font-size:12px; overflow:auto;"></pre>
+      <div id="analysis-complete-toast" style="display:none; margin-top:12px; padding:12px; background:#4caf50; color:#fff; border-radius:6px; text-align:center;">
+        ✓ 分析已完成
+        <button onclick="location.reload()" style="margin-left:12px; padding:6px 16px; background:#fff; color:#4caf50; border:none; border-radius:4px; cursor:pointer; font-size:13px;">查看结果</button>
+      </div>
+    </div>
+    {% elif latest_run.status in ('pending', 'running') %}
+      <p class="muted" style="padding:12px 0;">正在初始化分析阶段…</p>
+      <pre class="log-pre" id="run-log" style="max-height:400px; min-height:200px; margin-top:16px;"></pre>
+    {% endif %}
+  </div>
+
+{% else %}
+  <div class="empty-state">
+    <p>还未分析，点击「开始分析」按钮。</p>
+  </div>
+{% endif %}
+
+<!-- History runs -->
+{% if runs | length > 1 %}
+<h2 class="section-title">历史运行记录</h2>
+<div class="table-wrap">
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Run ID</th>
+      <th>时间</th>
+      <th>状态</th>
+      <th>耗时</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in runs[1:] %}
+    <tr>
+      <td>#{{ r.id }}</td>
+      <td>{{ r.created_at[:16] }}</td>
+      <td>
+        {% set rl = {'pending':'待分析','running':'分析中','done':'已完成','failed':'失败'} %}
+        <span class="badge badge-{{ r.status }}">{{ rl.get(r.status, r.status) }}</span>
+      </td>
+      <td>{% if r.duration_ms %}{{ (r.duration_ms / 1000)|int }}s{% else %}—{% endif %}</td>
+      <td>
+        <button class="btn btn-xs" onclick="rerun({{ r.id }})">重跑</button>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.PAGE_DATA = {
+  pluginId: {{ plugin.id }},
+  runId: {{ latest_run.id if latest_run else 'null' }},
+  runStatus: '{{ latest_run.status if latest_run else "" }}',
+};
+
+if (window.PAGE_DATA.runStatus === 'running') {
+  startRunTimer();
+  startRunLogPoll(PAGE_DATA.runId);
+  startRunStatusPoll(PAGE_DATA.runId);
+}
+
+function startRunTimer() {
+  const el = document.getElementById('run-timer');
+  if (!el) return;
+  const start = Date.now();
+  setInterval(() => {
+    const s = Math.floor((Date.now() - start) / 1000);
+    el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  }, 1000);
+}
+
+async function analyzePlugin(id) {
+  try {
+    const r = await apiFetch(`/api/plugins/${id}/analyze`, 'POST', {});
+    showToast(r.run_id ? `分析任务已加入队列，Run #${r.run_id}` : '正在下载后分析…');
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { showToast('分析失败：' + e.message, 'error'); }
+}
+
+async function rerun(runId) {
+  try {
+    const r = await apiFetch(`/api/runs/${runId}/rerun`, 'POST', {});
+    showToast(r.run_id ? `新分析任务已加入队列，Run #${r.run_id}` : '正在下载后分析…');
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { showToast('重跑失败：' + e.message, 'error'); }
+}
+</script>
+{% endblock %}

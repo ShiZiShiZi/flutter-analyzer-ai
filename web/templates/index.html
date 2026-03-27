@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}插件列表 — Flutter Analyzer{% endblock %}
+{% block body_id %}page-index{% endblock %}
+
+{% block content %}
+
+{# ── Macros (must be defined before use) ─────────────────────────────── #}
+{% macro dl_badge(p) %}
+  {% set labels = {'pending':'待下载','running':'下载中','done':'已下载','failed':'下载失败','cleaned':'已清理'} %}
+  <span class="badge badge-{{ p.dl_status }}"
+    {% if p.dl_status == 'failed' and p.dl_error %}title="{{ p.dl_error }}"{% endif %}>
+    {{ labels.get(p.dl_status, p.dl_status) }}
+    {% if p.dl_status == 'done' and p.repo_size_mb %}
+      <small>({{ p.repo_size_mb | human_size }})</small>
+    {% endif %}
+  </span>
+{% endmacro %}
+
+{% macro run_badge(p) %}
+  {% if p.run_status %}
+    {% set labels = {'pending':'待分析','running':'分析中','done':'已完成','failed':'分析失败'} %}
+    <span class="badge badge-{{ p.run_status }}"
+      {% if p.run_status == 'failed' and p.run_error_msg %}title="{{ p.run_error_msg }}"{% endif %}>
+      {{ labels.get(p.run_status, p.run_status) }}
+    </span>
+    {% if p.run_finished_at %}
+      <br><small class="muted">{{ p.run_finished_at[:16] }}</small>
+    {% endif %}
+  {% else %}
+    <span class="muted">—</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro result_summary(p) %}
+  {% if p.stage_results %}
+    {% set cs  = p.stage_results.get('cloud_services') %}
+    {% set pay = p.stage_results.get('payment') %}
+    {% set lic = p.stage_results.get('license') %}
+    <div class="result-chips">
+      {% if cs and cs.result %}
+        {% set topo = cs.result.get('topology', '') %}
+        <span class="chip chip-topo-{{ topo }}">{{ topo or '?' }}</span>
+      {% endif %}
+      {% if pay and pay.result is not none %}
+        {% set pr = pay.result %}
+        {% set is_paid = pr.get('payment_required') or pr.get('paid') or pr.get('has_payment') %}
+        <span class="chip chip-{{ 'paid' if is_paid else 'free' }}">{{ '付费' if is_paid else '免费' }}</span>
+      {% endif %}
+      {% if lic and lic.result %}
+        {% set lv = lic.result.get('license') or lic.result.get('spdx_id') or lic.result.get('type', '') %}
+        <span class="chip chip-license">{{ lv }}</span>
+      {% endif %}
+    </div>
+  {% else %}
+    <span class="muted">—</span>
+  {% endif %}
+{% endmacro %}
+
+{# ── Page header ──────────────────────────────────────────────────────── #}
+<div class="page-header">
+  <h1>插件列表</h1>
+  <a href="/export" class="btn">导出 CSV</a>
+  <a href="/export/json" class="btn">导出 JSON</a>
+  <a href="/import" class="btn btn-primary">+ 批量导入</a>
+</div>
+
+{# Status bar #}
+<div class="status-card">
+  <div class="status-card-row">
+    <span>下载中：<strong id="dl-running-text">{{ dl_running_count }}</strong> 个</span>
+    <span>队列：<strong id="queue-size-text">{{ queue_size }}</strong> 个</span>
+    <span>当前：<strong id="current-text">{% if current_task|length > 0 %}{{ current_task|length }} 个运行中{% else %}空闲{% endif %}</strong></span>
+    <button class="btn btn-xs" onclick="openTaskPanel()">任务列表</button>
+  </div>
+</div>
+
+{# Batch actions #}
+<div class="filter-bar" id="filter-bar">
+  <form method="get" action="/" id="search-form" style="display:contents">
+    <input type="text" name="q" value="{{ q }}" placeholder="搜索插件名称…"
+           class="search-input" id="search-input" autocomplete="off">
+    <input type="hidden" name="run" value="{{ run }}">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <input type="hidden" name="page" value="1">
+  </form>
+  <div class="filter-group">
+    <span class="filter-label">分析：</span>
+    {%- set _brun = "/?q=" ~ q ~ "&per_page=" ~ per_page -%}
+    <a href="{{ _brun }}&run=all"     class="filter-btn {% if run=='all'     %}active{% endif %}">全部<span class="fc" id="fc-run-all"></span></a>
+    <a href="{{ _brun }}&run=done"    class="filter-btn {% if run=='done'    %}active{% endif %}">已完成<span class="fc" id="fc-run-done"></span></a>
+    <a href="{{ _brun }}&run=running" class="filter-btn {% if run=='running' %}active{% endif %}">分析中<span class="fc" id="fc-run-running"></span></a>
+    <a href="{{ _brun }}&run=pending" class="filter-btn {% if run=='pending' %}active{% endif %}">排队中<span class="fc" id="fc-run-pending"></span></a>
+    <a href="{{ _brun }}&run=failed"  class="filter-btn {% if run=='failed'  %}active{% endif %}">失败<span class="fc" id="fc-run-failed"></span></a>
+    <a href="{{ _brun }}&run=none"    class="filter-btn {% if run=='none'    %}active{% endif %}">未分析<span class="fc" id="fc-run-none"></span></a>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+    选前
+    <input type="number" id="select-n-input" min="1" placeholder="N"
+      style="width:56px;padding:3px 8px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;outline:none"
+      onkeydown="if(event.key==='Enter') selectFirstN()">
+    条
+    <button class="btn btn-sm" onclick="selectFirstN()">选中</button>
+  </div>
+</div>
+
+<div class="batch-actions" id="batch-actions" style="display:none">
+  <span id="selected-count">0</span> 个已选择
+  <button class="btn btn-sm btn-success" onclick="batchAnalyze()">分析</button>
+  <button class="btn btn-sm btn-warning" onclick="batchReanalyze()">重新分析</button>
+  <button class="btn btn-sm btn-danger" onclick="batchDelete()">删除</button>
+  <button class="btn btn-sm btn-ghost" onclick="clearSelection()">取消</button>
+</div>
+
+{% if plugins %}
+<div class="table-wrap">
+<table class="data-table" id="plugins-table">
+  <thead>
+    <tr>
+      <th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+      <th>ID</th>
+      <th>名称</th>
+      <th>pub.dev</th>
+      <th>下载状态</th>
+      <th>分析状态</th>
+      <th>结果摘要</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in plugins %}
+    <tr id="row-{{ p.id }}" data-plugin-id="{{ p.id }}"
+        data-dl="{{ p.dl_status }}"
+        data-run="{{ p.run_status or 'none' }}">
+      <td><input type="checkbox" class="row-check" value="{{ p.id }}" onchange="onRowCheck()"></td>
+      <td class="muted" style="font-size:12px">{{ p.id }}</td>
+      <td><a href="/plugins/{{ p.id }}" class="plugin-name">{{ p.name }}</a></td>
+      <td>
+        <a href="https://pub.dev/packages/{{ p.name }}" target="_blank" class="url-link">
+          {{ p.name }}
+        </a>
+      </td>
+      <td id="dl-cell-{{ p.id }}">{{ dl_badge(p) }}</td>
+      <td id="run-cell-{{ p.id }}">{{ run_badge(p) }}</td>
+      <td id="summary-cell-{{ p.id }}">{{ result_summary(p) }}</td>
+      <td class="actions-cell">
+        <div class="actions-inner">
+        <a href="/plugins/{{ p.id }}" class="btn btn-xs">详情</a>
+        <button class="btn btn-xs btn-success" onclick="analyzeOne({{ p.id }})">分析</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteOne({{ p.id }})">删除</button>
+        </div>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="pagination-bar">
+  <span class="page-info">共 {{ total }} 条，第 {{ page }}/{{ total_pages }} 页</span>
+
+  {% if page > 1 %}
+    <a class="btn btn-sm" href="/?page={{ page-1 }}&per_page={{ per_page }}&q={{ q }}&dl={{ dl }}&run={{ run }}">上一页</a>
+  {% else %}
+    <button class="btn btn-sm" disabled>上一页</button>
+  {% endif %}
+
+  {% if page < total_pages %}
+    <a class="btn btn-sm" href="/?page={{ page+1 }}&per_page={{ per_page }}&q={{ q }}&dl={{ dl }}&run={{ run }}">下一页</a>
+  {% else %}
+    <button class="btn btn-sm" disabled>下一页</button>
+  {% endif %}
+
+  <select onchange="changePerPage(this.value)">
+    {% for n in [10, 20, 50, 100] %}
+      <option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }} 条/页</option>
+    {% endfor %}
+  </select>
+</div>
+
+{% else %}
+<div class="empty-state">
+  <p>还没有插件。<a href="/import">立即导入</a></p>
+</div>
+{% endif %}
+
+<div id="task-panel-overlay" class="modal-overlay" hidden onclick="closeTaskPanel()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">任务列表</h3>
+      <button class="modal-close" onclick="closeTaskPanel()">×</button>
+    </div>
+    <div class="modal-body" id="task-panel-body">加载中…</div>
+  </div>
+</div>
+
+{% endblock %}

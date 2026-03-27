@@ -1,0 +1,16 @@
+我将按照八步流程分析该 Flutter 插件。让我先加载并执行各项检查。
+我已加载所有 skill，现在开始按顺序执行八步分析。
+
+## 第一步：License Check
+## 第二步：Mobile Platform Check
+## 第三步：Cloud Service Check
+## 第四步：Payment Check
+## 第五步：Features Check
+## 第六步：Ecosystem Check
+
+基于第五步 features-check 的结论，我已经可以推导：
+- 无 ads、account_login、payment、cashier、hot_update、ime 信号
+- 需要检查 web_engine 信号
+## 第七步：Dependency Analysis
+## 第八步：Code Stats Check
+所有八步分析已完成，现在整合结果并写入 JSON 文件。

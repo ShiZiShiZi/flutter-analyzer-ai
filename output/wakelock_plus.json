@@ -1,0 +1,19 @@
+{
+  "repo_url": "https://github.com/fluttercommunity/wakelock_plus/tree/main/wakelock_plus",
+  "analyzed_at": "2026-03-13T03:27:11.434Z",
+  "cloud_services": {
+    "uses_cloud": false,
+    "services": [],
+    "evidence": []
+  },
+  "payment": {
+    "involves_payment": false,
+    "payment_type": [],
+    "evidence": []
+  },
+  "license": {
+    "type": "BSD-3-Clause",
+    "commercial_friendly": true,
+    "restrictions": []
+  }
+}

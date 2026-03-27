@@ -1,0 +1,71 @@
+{
+  "repo_url": "https://github.com/liasica/flutter_a11y_service",
+  "analyzed_at": "2026-03-13T14:54:00Z",
+  "cloud_services": {
+    "topology": "pure_edge",
+    "label": "纯端",
+    "services": [],
+    "evidence": [
+      "pubspec.yaml 仅依赖 flutter SDK 和 plugin_platform_interface，无任何云服务依赖",
+      "lib/ 目录下无网络请求或云服务 API 调用"
+    ]
+  },
+  "payment": {
+    "involves_payment": false,
+    "plugin_paid": false,
+    "cloud_paid": false,
+    "payment_type": [],
+    "evidence": [
+      "LICENSE 文件为 MIT License，商业友好",
+      "无付费云服务依赖"
+    ]
+  },
+  "license": {
+    "type": "MIT",
+    "commercial_friendly": true,
+    "restrictions": []
+  },
+  "mobile_platform": {
+    "label": "NONE",
+    "confidence": "high",
+    "evidence": [
+      "无华为 HMS、谷歌 GMS、小米、OPPO、VIVO、荣耀、魅族等厂商特定依赖",
+      "使用标准 Android Accessibility Service API，适用于所有 Android 设备"
+    ]
+  },
+  "features": {
+    "categories": [
+      "platform_utility"
+    ],
+    "tags": [
+      "permission",
+      "app_lifecycle"
+    ],
+    "feature_list": [
+      "支持请求 Android 无障碍服务权限",
+      "支持检查无障碍服务权限状态",
+      "支持监听无障碍服务事件变化",
+      "支持监听权限变化",
+      "支持强制停止应用",
+      "支持返回键操作",
+      "支持主页键操作",
+      "支持最近任务键操作",
+      "支持电源对话框操作",
+      "支持通知栏操作",
+      "支持快速设置操作",
+      "支持锁屏操作",
+      "支持分屏操作",
+      "支持查找文本节点并点击",
+      "支持获取窗口节点树信息"
+    ],
+    "summary": "提供 Android 无障碍服务封装，支持权限管理、系统操作和节点分析，适用于自动化测试和无障碍辅助应用。",
+    "evidence": [
+      "lib/a11y_service.dart:9-15 requestPermission() 和 isGranted() 方法",
+      "lib/a11y_service.dart:17-23 onAccessibilityEvent 和 onPermissionChanged 事件流",
+      "lib/a11y_service.dart:25-39 forceStopApp() 方法",
+      "lib/a11y_service.dart:41-55 actionBack/Home/Recent/PowerDialog/NotificationBar/QuickSettings/LockScreen/SplitScreen 系统操作",
+      "lib/a11y_service.dart:61-76 actionFindTextAndClick() 方法",
+      "lib/a11y_service.dart:79-85 analyze() 方法获取窗口节点树"
+    ]
+  }
+}
