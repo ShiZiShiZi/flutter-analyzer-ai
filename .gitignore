@@ -1,0 +1,44 @@
+# 排除大型目录和临时文件
+repos/
+logs/
+*.log
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# opencode
+.opencode/
+opencode_config/
+
+# 临时文件
+*.tmp
+*.bak
+*.xlsx
+*.json.bak
+
+# 导出文件（可按需提交）
+# analysis_export.json
+# cleared_*.json
+# unexecuted_*.json
+
+# 工作目录
+workspace/
+
+# 系统文件
+.DS_Store
+Thumbs.db

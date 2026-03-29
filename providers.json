@@ -1,0 +1,30 @@
+{
+  "providers": [
+    {
+      "name": "tencent",
+      "baseURL": "https://api.lkeap.cloud.tencent.com/coding/v3",
+      "apiKey": "sk-sp-hjqLHgeoq3m6oap7hL0oCOW2EepFSFVWhMyqqH0pZXsApzez",
+      "models": ["glm-5", "minimax-m2.5", "kimi-k2.5"],
+      "limit": 6000,
+      "window_hours": 5
+    },
+    {
+      "name": "aliyun-1",
+      "baseURL": "https://coding.dashscope.aliyuncs.com/v1",
+      "apiKey": "sk-sp-9b202053b6f04d08b0ec8c52f5d551ae",
+      "models": ["glm-5", "qwen3-coder-plus", "qwen3.5-plus"],
+      "limit": 6000,
+      "window_hours": 5
+    },
+    {
+      "name": "aliyun-2",
+      "baseURL": "https://coding.dashscope.aliyuncs.com/v1",
+      "apiKey": "sk-sp-d5d68b23cc2248a8b30aaaaf3727725f",
+      "models": ["glm-5", "qwen3-coder-plus", "qwen3.5-plus"],
+      "limit": 6000,
+      "window_hours": 5
+    }
+  ],
+  "strategy": "exhaust_then_switch",
+  "default_model": "glm-5"
+}

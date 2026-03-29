@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from email.utils import formatdate
 
 from src.analyzer import LOG_DIR
-from src.proxy import start_proxy, stop_proxy
+from src.proxy import start_proxy, stop_proxy, get_proxy_stats
 from src.pub_downloader import REPOS_DIR, cleanup_plugin, download_and_extract
 from web import db as database
 from web.pubdev import lookup as pubdev_lookup
@@ -42,13 +42,15 @@ async def lifespan(app: FastAPI):
     if dl_reset or run_reset:
         logger.warning("重置了 %d 个下载 / %d 个分析任务（服务重启）", dl_reset, run_reset)
 
-    # 启动持久代理（指向 Bailian）
-    config_path = Path.home() / ".config/opencode/opencode.json"
-    base_config = json.loads(config_path.read_text())
-    real_url = base_config["provider"]["bailian-coding-plan"]["options"]["baseURL"]
-    proxy = start_proxy(real_url, port=0, verbose=False)
-    proxy_port = proxy.server_address[1]
-    logger.info("代理已启动，端口 %d → %s", proxy_port, real_url)
+    # 启动智能代理（支持多 provider 自动切换），使用固定端口 8765
+    PROXY_PORT = 8765
+    try:
+        proxy = start_proxy(port=PROXY_PORT, verbose=False)
+        stats = get_proxy_stats(proxy)
+        logger.info("代理已启动，端口 %d，当前 provider: %s", PROXY_PORT, stats["current_provider"])
+    except OSError as e:
+        logger.warning("端口 %d 已被占用，代理可能已在运行: %s", PROXY_PORT, e)
+        proxy = None
 
     worker_tasks = [
         asyncio.create_task(analysis_queue.worker()) for _ in range(CONCURRENCY)
@@ -62,7 +64,8 @@ async def lifespan(app: FastAPI):
             await t
         except asyncio.CancelledError:
             pass
-    stop_proxy(proxy)
+    if proxy:
+        stop_proxy(proxy)
     await database.close_db()
 
 
@@ -410,6 +413,17 @@ async def system_status():
         "queue_size": analysis_queue.size,
         "current_task": analysis_queue.current,
     })
+
+
+@app.get("/api/providers/stats")
+async def providers_stats():
+    """获取多 Provider 切换统计信息。"""
+    from src.proxy import get_provider_pool
+    try:
+        pool = get_provider_pool()
+        return JSONResponse(pool.get_stats())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.get("/api/tasks")

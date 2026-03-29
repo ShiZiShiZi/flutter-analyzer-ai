@@ -9,7 +9,7 @@ from web import db as database
 
 logger = logging.getLogger(__name__)
 
-CONCURRENCY = 20
+CONCURRENCY = 5
 
 # 运行中的 run_id 集合，用于 API 端点判断 done=False
 running_runs: set[int] = set()
